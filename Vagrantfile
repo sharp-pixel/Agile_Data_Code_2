@@ -4,6 +4,7 @@
 Vagrant.configure("2") do |config|
   config.vm.box = "bento/ubuntu-17.04"
   config.vm.provider "virtualbox" do |vb|
+      vb.cpus = 4
       vb.memory = "9216"
   end
 
@@ -16,7 +17,7 @@ Vagrant.configure("2") do |config|
     sudo add-apt-repository -y ppa:webupd8team/java
     sudo apt-get -qq update
     echo "oracle-java8-installer shared/accepted-oracle-license-v1-1 select true" | sudo debconf-set-selections
-    sudo apt-get install -y -qq oracle-java8-installer oracle-java8-set-default
+    sudo apt-get install -y -qq oracle-java8-installer oracle-java8-set-default > /dev/null
 
     export JAVA_HOME=/usr/lib/jvm/java-8-oracle
     echo "export JAVA_HOME=/usr/lib/jvm/java-8-oracle" | tee -a $HOME/.bash_profile
@@ -26,7 +27,7 @@ Vagrant.configure("2") do |config|
     echo "curl -sLko /tmp/Miniconda3-latest-Linux-x86_64.sh https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh"
     curl -sLko /tmp/Miniconda3-latest-Linux-x86_64.sh https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
     chmod +x /tmp/Miniconda3-latest-Linux-x86_64.sh
-    /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/anaconda
+    /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p $HOME/anaconda > /dev/null
 
     export PATH=$HOME/anaconda/bin:$PATH
     echo 'export PATH=$HOME/anaconda/bin:$PATH' | tee -a $HOME/.bash_profile
@@ -38,19 +39,22 @@ Vagrant.configure("2") do |config|
     cd $HOME/Agile_Data_Code_2
     export PROJECT_HOME=$HOME/Agile_Data_Code_2
     echo "export PROJECT_HOME=$HOME/Agile_Data_Code_2" | tee -a $HOME/.bash_profile
-    conda install python=3.6.2
-    conda install iso8601 numpy scipy scikit-learn matplotlib ipython jupyter
-    pip install -qqq bs4 Flask beautifulsoup4 airflow frozendict geopy kafka-python py4j pymongo pyelasticsearch requests selenium tabulate tldextract wikipedia findspark
+    conda install python=3.6.2 > /dev/null
+    conda install iso8601 numpy scipy scikit-learn matplotlib ipython jupyter > /dev/null
+    pip install -qqq bs4 Flask beautifulsoup4 airflow frozendict geopy kafka-python py4j pymongo pyelasticsearch requests selenium tabulate tldextract wikipedia findspark > /dev/null
 
     cd $HOME
   REPO
 
   config.vm.provision "hadoop", type: "shell", privileged: false, inline: <<-HADOOP
-    echo "curl -sLko /tmp/hadoop-2.7.4.tar.gz http://apache.osuosl.org/hadoop/common/hadoop-2.7.4/hadoop-2.7.4.tar.gz"
-    curl -sLko /tmp/hadoop-2.7.4.tar.gz http://apache.osuosl.org/hadoop/common/hadoop-2.7.4/hadoop-2.7.4.tar.gz
     mkdir -p $HOME/hadoop
-    cd $HOME/
-    tar xzf /tmp/hadoop-2.7.4.tar.gz -C hadoop --strip-components=1
+    if [ -f /vagrant/external/hadoop-2.7.4.tar.gz ]; then
+      tar xzf /vagrant/external/hadoop-2.7.4.tar.gz -C hadoop --strip-components=1
+    else
+      echo "curl -sLko /tmp/hadoop-2.7.4.tar.gz http://apache.osuosl.org/hadoop/common/hadoop-2.7.4/hadoop-2.7.4.tar.gz"
+      curl -sLko /tmp/hadoop-2.7.4.tar.gz http://apache.osuosl.org/hadoop/common/hadoop-2.7.4/hadoop-2.7.4.tar.gz
+      tar xzf /tmp/hadoop-2.7.4.tar.gz -C hadoop --strip-components=1
+    fi
 
     echo '# Hadoop environment setup' | tee -a $HOME/.bash_profile
     export HADOOP_HOME=$HOME/hadoop
@@ -64,11 +68,14 @@ Vagrant.configure("2") do |config|
   HADOOP
 
   config.vm.provision "spark", type: "shell", privileged: false, inline: <<-SPARK
-    echo "curl -sLko /tmp/spark-2.2.0-bin-without-hadoop.tgz http://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-without-hadoop.tgz"
-    curl -sLko /tmp/spark-2.2.0-bin-without-hadoop.tgz http://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-without-hadoop.tgz
     mkdir -p $HOME/spark
-    cd $HOME
-    tar xzf /tmp/spark-2.2.0-bin-without-hadoop.tgz -C spark --strip-components=1
+    if [ -f /vagrant/external/spark-2.2.0-bin-without-hadoop.tgz ]; then
+      tar xzf /vagrant/external/spark-2.2.0-bin-without-hadoop.tgz -C spark --strip-components=1
+    else
+      echo "curl -sLko /tmp/spark-2.2.0-bin-without-hadoop.tgz http://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-without-hadoop.tgz"
+      curl -sLko /tmp/spark-2.2.0-bin-without-hadoop.tgz http://d3kbcqa49mib13.cloudfront.net/spark-2.2.0-bin-without-hadoop.tgz
+      tar xzf /tmp/spark-2.2.0-bin-without-hadoop.tgz -C spark --strip-components=1
+    fi    
 
     echo "" >> $HOME/.bash_profile
     echo "# Spark environment setup" | tee -a $HOME/.bash_profile
@@ -138,15 +145,20 @@ Vagrant.configure("2") do |config|
   MONGO
 
   config.vm.provision "elasticsearch", type: "shell", privileged: false, inline: <<-ELASTICSEARCH
-    echo "curl -sLko /tmp/elasticsearch-5.6.1.tar.gz https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.1.tar.gz"
-    curl -sLko /tmp/elasticsearch-5.6.1.tar.gz https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.1.tar.gz
     mkdir $HOME/elasticsearch
     cd $HOME
-    tar xzf /tmp/elasticsearch-5.6.1.tar.gz -C elasticsearch --strip-components=1
+
+    if [ -f /vagrant/external/elasticsearch-5.6.1.tar.gz ]; then
+      tar xzf /vagrant/external/elasticsearch-5.6.1.tar.gz -C elasticsearch --strip-components=1
+    else
+      echo "curl -sLko /tmp/elasticsearch-5.6.1.tar.gz https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.1.tar.gz"
+      curl -sLko /tmp/elasticsearch-5.6.1.tar.gz https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.6.1.tar.gz
+      tar xzf /tmp/elasticsearch-5.6.1.tar.gz -C elasticsearch --strip-components=1
+    fi
     mkdir -p $HOME/elasticsearch/logs
 
     # Run elasticsearch
-    #$HOME/elasticsearch/bin/elasticsearch -d # re-run if you shutdown your computer
+    # $HOME/elasticsearch/bin/elasticsearch -d # re-run if you shutdown your computer
 
     # Install Elasticsearch for Hadoop
     echo "curl -sLko /tmp/elasticsearch-hadoop-5.6.1.zip http://download.elastic.co/hadoop/elasticsearch-hadoop-5.6.1.zip"
@@ -174,19 +186,22 @@ Vagrant.configure("2") do |config|
   SPARKJARS
 
   config.vm.provision "kafka", type: "shell", privileged: false, inline: <<-KAFKA
-    echo "curl -sLko /tmp/kafka_2.11-0.11.0.1.tgz http://www-us.apache.org/dist/kafka/0.11.0.1/kafka_2.11-0.11.0.1.tgz"
-    curl -sLko /tmp/kafka_2.11-0.11.0.1.tgz http://www-us.apache.org/dist/kafka/0.11.0.1/kafka_2.11-0.11.0.1.tgz
     mkdir -p $HOME/kafka
-    cd $HOME/
-    tar xzf /tmp/kafka_2.11-0.11.0.1.tgz -C kafka --strip-components=1 && rm -f /tmp/kafka_2.11-0.11.0.1.tgz
-    rm -f /tmp/kafka_2.11-0.11.0.1.tgz
+    if [ -f /vagrant/external/kafka_2.11-0.11.0.1.tgz ]; then
+      tar xzf /vagrant/external/kafka_2.11-0.11.0.1.tgz -C kafka --strip-components=1
+    else
+      echo "curl -sLko /tmp/kafka_2.11-0.11.0.1.tgz http://www-us.apache.org/dist/kafka/0.11.0.1/kafka_2.11-0.11.0.1.tgz"
+      curl -sLko /tmp/kafka_2.11-0.11.0.1.tgz http://www-us.apache.org/dist/kafka/0.11.0.1/kafka_2.11-0.11.0.1.tgz
+      tar xzf /tmp/kafka_2.11-0.11.0.1.tgz -C kafka --strip-components=1 && rm -f /tmp/kafka_2.11-0.11.0.1.tgz
+      rm -f /tmp/kafka_2.11-0.11.0.1.tgz
+    fi
 
     # Set the log dir to kafka/logs
-    sed -i '/log.dirs=\/tmp\/kafka-logs/c\log.dirs=logs' $HOME/kafka/config/server.properties
+    # sed -i "/log.dirs=\/tmp\/kafka-logs/c\log.dirs=logs" $HOME/kafka/config/server.properties
 
     # Run zookeeper (which kafka depends on), then Kafka
-    #$HOME/kafka/bin/zookeeper-server-start.sh -daemon $HOME/kafka/config/zookeeper.properties
-    #$HOME/kafka/bin/kafka-server-start.sh -daemon $HOME/kafka/config/server.properties
+    # $HOME/kafka/bin/zookeeper-server-start.sh -daemon $HOME/kafka/config/zookeeper.properties
+    # $HOME/kafka/bin/kafka-server-start.sh -daemon $HOME/kafka/config/server.properties
   KAFKA
 
   config.vm.provision "airflow", type: "shell", privileged: false, inline: <<-AIRFLOW
@@ -203,11 +218,15 @@ Vagrant.configure("2") do |config|
   AIRFLOW
 
   config.vm.provision "zeppelin", type: "shell", privileged: false, inline: <<-ZEPPELIN
-    # Install Apache Zeppelin
-    echo "curl -sLko /tmp/zeppelin-0.7.2-bin-all.tgz http://www-us.apache.org/dist/zeppelin/zeppelin-0.7.2/zeppelin-0.7.2-bin-all.tgz"
-    curl -sLko /tmp/zeppelin-0.7.2-bin-all.tgz http://www-us.apache.org/dist/zeppelin/zeppelin-0.7.2/zeppelin-0.7.2-bin-all.tgz
     mkdir zeppelin
-    tar xzf /tmp/zeppelin-0.7.2-bin-all.tgz -C zeppelin --strip-components=1
+    if [ -f /vagrant/external/zeppelin-0.7.3-bin-all.tgz ]; then
+      tar xzf /vagrant/external/zeppelin-0.7.3-bin-all.tgz -C zeppelin --strip-components=1
+    else
+      # Install Apache Zeppelin
+      echo "curl -sLko /tmp/zeppelin-0.7.3-bin-all.tgz http://www-us.apache.org/dist/zeppelin/zeppelin-0.7.3/zeppelin-0.7.3-bin-all.tgz"
+      curl -sLko /tmp/zeppelin-0.7.3-bin-all.tgz http://www-us.apache.org/dist/zeppelin/zeppelin-0.7.3/zeppelin-0.7.3-bin-all.tgz
+      tar xzf /tmp/zeppelin-0.7.3-bin-all.tgz -C zeppelin --strip-components=1
+    fi
 
     # Configure Zeppelin
     cp zeppelin/conf/zeppelin-env.sh.template zeppelin/conf/zeppelin-env.sh
@@ -234,7 +253,7 @@ Vagrant.configure("2") do |config|
     echo "DONE!"
   CLEANUP
 
-  config.vm.provision "start", type: "shell", run: "always", inline: <<-START
+  config.vm.provision "start", type: "shell", privileged: false, run: "always", inline: <<-START
     echo "Starting Mongodb"
     #sudo /usr/bin/mongod --fork --logpath /var/log/mongodb.log
 
